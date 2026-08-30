@@ -41,12 +41,22 @@ def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/*?:"<>|]', "_", name).strip()
 
 
-def col2num(col_str: str) -> int:
-    """Converts Excel column string (e.g. 'A', 'Z', 'AA') to 1-based integer."""
-    num = 0
+def column_letter_to_index(col_str: str) -> int:
+    """Converts Excel column letters (e.g. 'A' -> 1, 'Z' -> 26, 'AA' -> 27) to 1-based index."""
+    index = 0
     for char in col_str:
-        num = num * 26 + (ord(char) - ord('A') + 1)
-    return num
+        index = index * 26 + (ord(char) - ord('A') + 1)
+    return index
+
+
+def calculate_data_hash(data: bytes) -> str:
+    """Computes the MD5 hex digest of binary data."""
+    return hashlib.md5(data).hexdigest()
+
+
+def calculate_file_hash(file_path: Path) -> str:
+    """Computes the MD5 hex digest of a file if it exists, otherwise empty string."""
+    return hashlib.md5(file_path.read_bytes()).hexdigest() if file_path.exists() else ""
 
 
 def fetch_full_workbook(spreadsheet_id: str, fmt: str = "xlsx") -> bytes:
@@ -58,81 +68,101 @@ def fetch_full_workbook(spreadsheet_id: str, fmt: str = "xlsx") -> bytes:
         return resp.read()
 
 
+def _extract_shared_strings(zip_archive: zipfile.ZipFile, xml_namespace: str) -> list[str]:
+    """Extracts all shared string values from an XLSX zip archive."""
+    if "xl/sharedStrings.xml" not in zip_archive.namelist():
+        return []
+
+    sst = ET.fromstring(zip_archive.read("xl/sharedStrings.xml"))
+    strings = []
+    for string_item in sst.iter(f"{xml_namespace}si"):
+        text_parts = [t.text for t in string_item.iter(f"{xml_namespace}t") if t.text]
+        strings.append("".join(text_parts))
+    return strings
+
+
+def _extract_sheet_targets(zip_archive: zipfile.ZipFile, xml_namespace: str, rel_namespace: str) -> list[tuple[str, str]]:
+    """Extracts pairs of (sheet_name, worksheet_zip_path) from workbook metadata."""
+    wb_tree = ET.fromstring(zip_archive.read("xl/workbook.xml"))
+    sheets_info = [
+        (s.attrib.get("name"), s.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"))
+        for s in wb_tree.iter(f"{xml_namespace}sheet")
+        if s.attrib.get("name") and s.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id")
+    ]
+
+    rel_map = {}
+    if "xl/_rels/workbook.xml.rels" in zip_archive.namelist():
+        rels_tree = ET.fromstring(zip_archive.read("xl/_rels/workbook.xml.rels"))
+        for rel in rels_tree.iter(f"{rel_namespace}Relationship"):
+            rel_map[rel.attrib.get("Id")] = rel.attrib.get("Target")
+
+    targets = []
+    for sheet_name, r_id in sheets_info:
+        rel_target = rel_map.get(r_id, "")
+        target_path = "xl/" + rel_target.lstrip("/")
+        if target_path in zip_archive.namelist():
+            targets.append((sheet_name, target_path))
+    return targets
+
+
+def _parse_worksheet_rows(ws_tree: ET.Element, strings: list[str], xml_namespace: str) -> list[list[str]]:
+    """Parses a single worksheet XML element into a 2D grid of string values."""
+    cell_pattern = re.compile(r"([A-Z]+)(\d+)")
+    grid: dict[int, dict[int, str]] = {}
+    max_col = 0
+    max_row = 0
+
+    for cell in ws_tree.iter(f"{xml_namespace}c"):
+        cell_ref = cell.attrib.get("r", "")
+        match = cell_pattern.match(cell_ref)
+        if not match:
+            continue
+
+        col_idx = column_letter_to_index(match.group(1)) - 1
+        row_idx = int(match.group(2)) - 1
+        max_col = max(max_col, col_idx)
+        max_row = max(max_row, row_idx)
+
+        cell_type = cell.attrib.get("t")
+        value_elem = cell.find(f"{xml_namespace}v")
+        val = ""
+
+        if value_elem is not None and value_elem.text is not None:
+            if cell_type == "s":
+                string_idx = int(value_elem.text)
+                val = strings[string_idx] if string_idx < len(strings) else ""
+            else:
+                val = value_elem.text
+                if val.endswith(".0"):
+                    val = val[:-2]
+
+        grid.setdefault(row_idx, {})[col_idx] = val
+
+    rows = []
+    for r in range(max_row + 1):
+        row_cells = [grid.get(r, {}).get(c, "") for c in range(max_col + 1)]
+        rows.append(row_cells)
+    return rows
+
+
 def parse_workbook_to_tabs(xlsx_bytes: bytes, fmt: str = "csv") -> dict[str, bytes]:
-    """Parses Google Sheets XLSX export into pure CSV/TSV per tab in memory without losing mixed-type cells."""
+    """Parses Google Sheets XLSX export into pure CSV/TSV per tab in memory."""
     delimiter = "\t" if fmt == "tsv" else ","
-    ns = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    xml_ns = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
     rel_ns = "{http://schemas.openxmlformats.org/package/2006/relationships}"
 
     with zipfile.ZipFile(io.BytesIO(xlsx_bytes)) as z:
-        # 1. Parse shared strings
-        strings = []
-        if "xl/sharedStrings.xml" in z.namelist():
-            sst = ET.fromstring(z.read("xl/sharedStrings.xml"))
-            for si in sst.iter(f"{ns}si"):
-                text_parts = [t.text for t in si.iter(f"{ns}t") if t.text]
-                strings.append("".join(text_parts))
-
-        # 2. Parse workbook relationship mapping
-        sheets_info = []
-        wb_tree = ET.fromstring(z.read("xl/workbook.xml"))
-        for sheet in wb_tree.iter(f"{ns}sheet"):
-            sheet_name = sheet.attrib.get("name")
-            r_id = sheet.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id")
-            if sheet_name and r_id:
-                sheets_info.append((sheet_name, r_id))
-
-        rel_map = {}
-        if "xl/_rels/workbook.xml.rels" in z.namelist():
-            rels_tree = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
-            for rel in rels_tree.iter(f"{rel_ns}Relationship"):
-                rel_map[rel.attrib.get("Id")] = rel.attrib.get("Target")
-
+        strings = _extract_shared_strings(z, xml_ns)
+        targets = _extract_sheet_targets(z, xml_ns, rel_ns)
         tabs_data = {}
-        for sheet_name, r_id in sheets_info:
-            target_rel = rel_map.get(r_id, "")
-            target_path = "xl/" + target_rel.lstrip("/")
-            if target_path not in z.namelist():
-                continue
 
-            ws = ET.fromstring(z.read(target_path))
-            rows_data = {}
-            max_c = 0
-            max_r = 0
-
-            for c in ws.iter(f"{ns}c"):
-                cell_ref = c.attrib.get("r", "")
-                if not cell_ref:
-                    continue
-                m = re.match(r"([A-Z]+)(\d+)", cell_ref)
-                if not m:
-                    continue
-                col_idx = col2num(m.group(1)) - 1
-                row_idx = int(m.group(2)) - 1
-                max_c = max(max_c, col_idx)
-                max_r = max(max_r, row_idx)
-
-                t_type = c.attrib.get("t")
-                v_elem = c.find(f"{ns}v")
-                val = ""
-                if v_elem is not None and v_elem.text is not None:
-                    if t_type == "s":
-                        s_idx = int(v_elem.text)
-                        val = strings[s_idx] if s_idx < len(strings) else ""
-                    else:
-                        val = v_elem.text
-                        # Clean trailing .0 from pure integers
-                        if val.endswith(".0"):
-                            val = val[:-2]
-
-                rows_data.setdefault(row_idx, {})[col_idx] = val
+        for sheet_name, target_path in targets:
+            ws_tree = ET.fromstring(z.read(target_path))
+            rows = _parse_worksheet_rows(ws_tree, strings, xml_ns)
 
             out = io.StringIO()
             writer = csv.writer(out, delimiter=delimiter, lineterminator="\n")
-            for r in range(max_r + 1):
-                row_cells = [rows_data.get(r, {}).get(c, "") for c in range(max_c + 1)]
-                writer.writerow(row_cells)
-
+            writer.writerows(rows)
             tabs_data[sheet_name] = out.getvalue().encode("utf-8")
 
         return tabs_data
@@ -142,8 +172,8 @@ def parse_workbook_to_tabs(xlsx_bytes: bytes, fmt: str = "csv") -> dict[str, byt
 def sync_file_content(target_path: Path, new_data: bytes, display_name: str, verbose: bool = True) -> bool:
     """Writes binary data to disk if the MD5 hash differs. Returns True if updated."""
     timestamp = time.strftime("%H:%M:%S")
-    current_hash = hashlib.md5(target_path.read_bytes()).hexdigest() if target_path.exists() else ""
-    new_hash = hashlib.md5(new_data).hexdigest()
+    current_hash = calculate_file_hash(target_path)
+    new_hash = calculate_data_hash(new_data)
 
     if current_hash != new_hash:
         target_path.write_bytes(new_data)
@@ -286,14 +316,14 @@ def two_way_sync_cycle(config: dict, known_hashes: dict[str, str]) -> dict[str, 
     SHEETS_DIR.mkdir(parents=True, exist_ok=True)
 
     # 1. Check local files for user edits first
-    for f in list(SHEETS_DIR.glob(f"*.{fmt}")):
-        sheet_name = f.stem
+    for file_path in list(SHEETS_DIR.glob(f"*.{fmt}")):
+        sheet_name = file_path.stem
         last_hash = known_hashes.get(sheet_name)
-        local_hash = hashlib.md5(f.read_bytes()).hexdigest()
+        local_hash = calculate_file_hash(file_path)
 
         if last_hash is not None and local_hash != last_hash:
             if webhook_url:
-                if push_single_sheet(webhook_url, f):
+                if push_single_sheet(webhook_url, file_path):
                     known_hashes[sheet_name] = local_hash
 
     # 2. Fetch fresh cloud state in 1 fast atomic request
@@ -304,8 +334,8 @@ def two_way_sync_cycle(config: dict, known_hashes: dict[str, str]) -> dict[str, 
         for sheet_name, data in tabs.items():
             filename = f"{sanitize_filename(sheet_name)}.{fmt}"
             target_path = SHEETS_DIR / filename
-            remote_hash = hashlib.md5(data).hexdigest()
-            local_hash = hashlib.md5(target_path.read_bytes()).hexdigest() if target_path.exists() else ""
+            remote_hash = calculate_data_hash(data)
+            local_hash = calculate_file_hash(target_path)
 
             if local_hash != remote_hash:
                 target_path.write_bytes(data)
@@ -313,8 +343,9 @@ def two_way_sync_cycle(config: dict, known_hashes: dict[str, str]) -> dict[str, 
                 print(f"[{timestamp}] [PULLED] {sheet_name} -> Sheets/{target_path.name}")
 
             known_hashes[sheet_name] = remote_hash
-    except Exception:
-        pass
+    except (urllib.error.URLError, zipfile.BadZipFile, TimeoutError) as e:
+        timestamp = time.strftime("%H:%M:%S")
+        print(f"[{timestamp}] [WARNING] Network sync failed (will retry): {e}")
 
     return known_hashes
 
@@ -379,9 +410,7 @@ def main():
         print("=" * 60)
 
         _, _ = sync_all(config, verbose=True)
-        known_hashes = {}
-        for f in SHEETS_DIR.glob("*.*"):
-            known_hashes[f.stem] = hashlib.md5(f.read_bytes()).hexdigest()
+        known_hashes = {f.stem: calculate_file_hash(f) for f in SHEETS_DIR.glob("*.*")}
 
         try:
             while True:
