@@ -49,7 +49,8 @@ python sync_sheets.py --push
   "spreadsheet_id": "1zWOJfO08DNXUgOX_R___Dj7SfW5hP3EAHeWCPT9G0Nc",
   "format": "csv",
   "watch_interval_seconds": 10,
-  "webhook_url": ""
+  "webhook_url": "",
+  "push_exclude": []
 }
 ```
 
@@ -61,10 +62,14 @@ python sync_sheets.py --push
 | `format` | `"csv"` | Output format: `csv`, `tsv`, `xlsx`, `pdf`, `ods`, or `html`. |
 | `watch_interval_seconds` | `10` | How often the watcher checks for cell changes (in seconds). |
 | `webhook_url` | `""` | *(Optional)* Google Apps Script Web App URL for pushing changes. |
+| `push_exclude` | `[]` | *(Optional)* Sheet tab names to never push back to Google Sheets. |
 
 #### Formats
 - **`csv` / `tsv`**: Downloads every tab as an individual file (e.g. `Sheets/Weapons.csv`, `Sheets/Stats.csv`).
 - **`xlsx` / `pdf` / `ods` / `html`**: Downloads the entire workbook as a single file (`Sheets/spreadsheet.xlsx`).
+
+#### About `push_exclude`
+Sheets that use **ARRAYFORMULA**, **LET**, **VSTACK**, or other Google Sheets-native functions should be listed here. Google Sheets XLSX exports convert these functions into compatibility stubs (`DUMMYFUNCTION`) that cannot be pushed back as live formulas. Excluding these computed/summary sheets from push keeps them safe while still syncing them locally on pull.
 
 ---
 

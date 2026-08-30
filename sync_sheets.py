@@ -303,11 +303,18 @@ def push_all(config: dict) -> int:
         except Exception as e:
             print(f"[WARNING] Could not save config: {e}")
 
-    csv_files = sorted(list(SHEETS_DIR.glob("*.csv")) + list(SHEETS_DIR.glob("*.tsv")))
+    excluded = {name.lower() for name in config.get("push_exclude", [])}
+    csv_files = sorted([
+        f for f in list(SHEETS_DIR.glob("*.csv")) + list(SHEETS_DIR.glob("*.tsv"))
+        if f.stem.lower() not in excluded
+    ])
     if not csv_files:
-        print(f"[ERROR] No CSV or TSV files found in {SHEETS_DIR}")
+        print(f"[ERROR] No pushable CSV or TSV files found in {SHEETS_DIR}")
         return 0
 
+    skipped = excluded & {f.stem.lower() for f in SHEETS_DIR.glob("*.*")}
+    if skipped:
+        print(f"[INFO] Skipping excluded sheets: {', '.join(sorted(skipped))}")
     print(f"Pushing {len(csv_files)} local file(s) to Google Sheets...")
     with ThreadPoolExecutor(max_workers=min(len(csv_files), 4)) as executor:
         futures = [executor.submit(push_single_sheet, webhook_url, f) for f in csv_files]
@@ -328,8 +335,11 @@ def two_way_sync_cycle(config: dict, known_hashes: dict[str, str]) -> dict[str, 
 
     SHEETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # 1. Check local files for user edits first
+    # 1. Check local files for user edits first (skip excluded sheets)
+    excluded = {name.lower() for name in config.get("push_exclude", [])}
     for file_path in list(SHEETS_DIR.glob(f"*.{fmt}")):
+        if file_path.stem.lower() in excluded:
+            continue
         sheet_name = file_path.stem
         last_hash = known_hashes.get(sheet_name)
         local_hash = calculate_file_hash(file_path)
