@@ -1,5 +1,6 @@
 {
-  "spreadsheet_id": "",
+  "spreadsheet_id": "1zWOJfOf8DNXUgOX_R___Dj7SfW5hP3EAHeWCPT9G0Nc",
   "format": "csv",
+  "webhook_url": "https://script.google.com/macros/s/AKfycbzd4KKBz7cyJVjkkXDSHGiplSmDRrmLJJWCO0s3P3SIBalUaD603bJCABb-MpqVpCT5/exec",
   "watch_interval_seconds": 10
 }

@@ -1,0 +1,42 @@
+"Status","Image","Passive","Name","Archetype/s","Description","Upgraded Description","Notes"
+"Half Done","","SC_DEATHMARCH
+SC_DeathMarch","Death March","Core"," At the start of your turn, you and all undead allies move 2 tiles towards the closest enemy.","TBD",""
+"Testing","","SC_RESTLESSDEAD
+SC_RestlessDead","Restless Dead","Core","When an enemy casts a spell, move 2 tiles toward the closest enemy.","TBD","Probably deprecated"
+"Doing","","SC_MINDLESSUNDEAD
+SC_MindlessUndead","Mindless Undead","Core","You are immune to Poison, Charm, Probed, Fear, and Possessed.","TBD","Poison immunity should probably by default."
+"Testing","","SC_SHALLOWGRAVES
+SC_ShallowGraves","Shallow Graves","Insatiable","When you take damage equal to or more than your [img:con], unearth a body on an adjacent tile.","TBD","Still deciding whether to keep this or not"
+"To Do","","SC_MOREBRAINS
+SC_MoreBrains","More... Brains!","Insatiable","The first time you Feast each turn, refresh your movement action.","Whenever you Feast, refresh your movement action.",""
+"Half Done","","SC_GLORYINDEATH
+SC_GloryInDeath","Glory in Death","Undying","The first time you are downed each battle, revive to 1 HP with Doomed 2 and gain 2 bonus turns with Full Mana, Invulnerability, and Madness.","Whenever you are downed, revive to 1 HP with Doomed 2 and gain 2 bonus turns with Full Mana, Invulnerability, and Madness.",""
+"Half Done","","SC_ALREADYDEAD
+SC_AlreadyDead","Already Dead","Undying","Start each battle at 50% health. The first time you are downed each battle, gain a random permanent stat.","Start each battle at 50% health. Whenever you are downed, gain a random permanent stat.",""
+"Half Done","","SC_CORDYCEPS
+SC_Cordyceps","Cordyceps","Undying","You are AI controlled and have 2 extra dispersed turns each round.","",""
+"To Do","","SC_ONEFOOTIN
+SC_OneFootIn","One Foot In","Undying","","",""
+"Half Done","","SC_THRILLER
+SC_Thriller","Thriller","Apocalyptic","Your movement action is a unique dash attack. You can use your movement action two extra times each turn.","TBD","Movement becomes Thrilling Dance."
+"Half Done","","SC_DAWNOFTHEDEAD
+SC_DawnOfTheDead","Dawn of the Dead","Apocalyptic","Start each battle with 2 zombie familiars near you.","Start each battle with 2-3 [img:champion] zombie familiars near you.",""
+"Testing","","SC_HERETHEYCOME
+SC_HereTheyCome","Here They Come...","Apocalyptic","When an enemy takes damage, you and all undead familiars move 1 tile towards the closest enemy.","TBD",""
+"Testing","","SC_MASTEROFPUPPETS
+SC_MasterOfPuppets","Master of Puppets","Apocalyptic","Your undead familiars are no longer AI controlled.","TBD","A very ambitious passive."
+"Testing","","SC_FORWEAREMANY
+SC_ForWeAreMany","For We Are Many","Insatiable, Apocalyptic","The buffs you and your familiars gain from Feast are shared.","TBD","Another very ambitious passive."
+"Half Done","","SC_RULECARDIO
+SC_RuleCardio","Rule #1: Cardio","Apocalyptic","When a body is destroyed, you and all familiars gain +1 [img:spd] until the end of your next turn.","",""
+"Testing","","SC_WEREALLINFECTED
+SC_WeReAllInfected","We're All Infected","Apocalyptic","Enemies that die while inflicted with Poison are immediately resurrected as undead familiars.","TBD","Needs heavy rework"
+"Testing","","SC_YOUALERTEDTHEHORDE
+SC_YouAlertedTheHorde","You Alerted The Horde!","Apocalyptic","You and your familiars gain +3 [img:spd] while adjacent to each other.","TBD","Needs heavy rework"
+"","","SC_FALLENCOMRADE
+SC_FallenComrade","Fallen Comrade","Apocalyptic","Start each battle with a random collared cat. It is a zombie and has random equipment.","",""
+"Half Done","","SC_HIVEMIND
+SC_HiveMind","Hive Mind","Apocalyptic","Gain two exact copies of yourself. Start each battle with half your stats except [img:cha] and [img:int], which are only reduced by a quarter.","TBD","proud of how this turned out."
+"To Do","","SC_PUTRIDSCENT
+SC_PutridScent","Putrid Scent","Apoptosis","At the start of your turn, trigger the Poison effects on all units within range 3.","TBD",""
+"Lots of these won't make it to the final version","","","","","","",""

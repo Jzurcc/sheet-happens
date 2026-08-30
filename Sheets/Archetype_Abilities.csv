@@ -1,0 +1,72 @@
+"Status","Image","Ability","Name","Archetype/s","Type","Cost","Description","Upgraded Description","Notes","pierce's comments"
+"Half Done","","SC_CULLTHEHERD
+SC_CullTheHerd","Cull The Herd","Insatiable, Apocalyptic","Attack","6 Mana","A melee attack. If used on an undead ally, destroy it and gain 3 random stat ups.","A melee attack. If used on an undead ally, execute it and gain 6 random stat ups.","",""
+"Half Done","","SC_GLUTTONOUSFEAST
+SC_GluttonousFeast","Gluttonous Feast","Insatiable","Attack","5 Mana","Feast on a living unit that has HP equal to or less than your [img:con]. You can't Feast on bosses or large units.","Feast on a living unit that has HP equal to or less than your [img:con] + 5. You can't Feast on bosses or large units.","",""
+"To Do","","","","Insatiable","Attack","3 Mana","A wide melee attack that has a chance to stun. Castable only if you have 4 or more Strength Up buffs. 
+[s:.7](Castable once per turn.)[/s]","A wide melee attack that inflicts stun. Castable only if you have 4 or more Strength Up buffs. [s:.7](Castable once per turn.)[/s]","",""
+"Half Done","","SC_GRAVEROBBING
+SC_GraveRobbing","Grave Robbing","Insatiable, Apocalyptic","Defense","4 Mana","Gain +1 [img:con] and heal 4 HP. Each body or undead gives you an additional 50% chance to repeat this. 
+[s:.7](Castable once per turn.)[/s]","Gain +1 [img:con] and heal 4 HP. Each body or undead gives you an additional 80% chance to repeat this. [s:.7](Castable once per turn.)[/s]","",""
+"To Do","","SC_BRAAIIIINS
+SC_Braaiiiins","Braaiiiins!","Insatiable","Move","4 Mana","Move toward the closest body.","Move toward the closest body. [s:.7](This spell costs less.)[/s]","2 Mana on Upgraded",""
+"Done","","SC_BRINGOUTYOURDEAD
+SC_BringOutYourDead","Bring Out Your Dead!","Insatiable","Misc","0 Mana","Unearth a body on an adjacent tile.
+RELOAD: Kill an enemy.","Unearth a body on an adjacent tile. [s:.7](Castable once per turn.)[/s]","",""
+"Testing","","SC_THELASTSUPPER
+SC_TheLastSupper","The Last Supper","Insatiable","Misc","8 Mana","Destroy all bodies. Gain +3 [img:str], +2 [img:con], and 4 HP for each body destroyed, then become drowsy.","TBD","",""
+"Half Done","","SC_SUPPRESSHUNGER
+SC_SuppressHunger","Suppress Hunger","Insatiable","Misc","5 Mana","For the rest of the battle, disable Feast. This ability becomes Intermittent Fasting.","TBD","",""
+"Doing","","SC_BLOAT
+SC_Bloat","Bloat","Insatiable","Misc","4 Mana","Heal 2 HP and gain +1 [img:str], +1 [img:con], and +1 Loose Chunk. Repeat this for every 6 [img:con] you have. 
+[s:.7](Castable once per turn.)[/s]","Heal 2 HP and gain +1 [img:str], +1 [img:con], and +1 Loose Chunk. Repeat this for every 4 [img:con] you have. [s:.7](Castable once per turn.)[/s]","Loose Chunk: Gain -1 [img:str], -1 [img:con], and spawn poisoned food the next {stacks} times you take damage.",""
+"To Do","","","","Insatiable","Misc","","Until end of turn, gain 2 random stat ups when you Feast.","Until end of turn, gain 4 random stat ups when you Feast.","",""
+"To Do","","","","Insatiable","Misc","4 Mana","For the rest of the battle, gain an extra +1 [img:str] when you Feast.","","",""
+"To Do","","SC_MASSGRAVE
+SC_MassGrave","Mass Grave","Insatiable, Apocalyptic","Misc","","Unearth 2-4 dead zombies on random tiles. They have a chance to reanimate at the end of the round.","","",""
+"To Do","","SC_TEARFLESH
+SC_TearFlesh","Tear Flesh","Insatiable, Undying, Apocalyptic","Misc","{con} HP","Take damage equal to your [img:con] to unearth a dead zombie on an adjacent tile.","Take damage equal to half your [img:con] to unearth two dead zombies on adjacent tiles.","",""
+"Doing","","SC_STARVE
+SC_Starve","Starve","Insatiable, Undying","Misc","{con} HP","Take damage equal to your [img:con] to gain +1 Temporary Bonus Attack and Lifesteal equal to a fifth of your [img:con], rounded up. 
+[s:.7](Castable once per turn.)[/s]","Take damage equal to your [img:con] to gain +1 Temporary Bonus Attack and Lifesteal equal to a third of your [img:con], rounded up. [s:.7](Castable once per turn.)[/s]","Still deciding whether to make this a temporary bonus attack or a refresh basic attack. With bonus attack (Quivered), you can use this ability before using your first basic attack so you use Lifesteal earlier, only problem is if you give Quivered after you've spent your basic attack, it will not refresh your basic attack for some reason. On the other hand, refresh basic attack will do nothing if you haven't attacked yet.","i would say you can attack one more time this turn, it works for both wordings sorta"
+"Half Done","","SC_DEATHFROMABOVE
+SC_DeathFromAbove","Death From Above","Undying","Defense","6 Mana","Jump to an open tile within range 2. If you land adjacent to an enemy, attack it.","Jump to an open tile within range 3. If you land adjacent to an enemy, attack it. [s:.7](This spell costs less.)[/s]","4 Mana on Upgraded",""
+"Half Done","","SC_DETERIORATE
+SC_Deteriorate","Deteriorate","Undying","Misc","4 HP","Take 4 damage to gain All Stats Down 1 and Poisonous 2. Your movement action becomes Crawl and this becomes Reek. 
+[s:.7](Castable once per battle.)[/s]","TBD","",""
+"Testing","","SC_SICEM
+SC_SicEm","Sic 'Em!","Apocalyptic","Attack","5 Mana","Target an enemy within range 3. All undead familiars immediately move up to 3 tiles toward it and attack if possible.","TBD","",""
+"Done","","SC_INFECT
+SC_Infect","Infect","Apocalyptic","Attack","5 Mana","A melee attack that deals damage equal to half your [img:str], rounded up. If this kills the target, resurrect their body to half HP. It becomes a Zombie and joins your team.","A melee attack. If this kills the target, resurrect their body to half HP. It becomes a Zombie and joins your team.","",""
+"Testing","","SC_SWAPVESSEL
+SC_SwapVessel","Swap Vessel","Apocalyptic","Move","4 Mana","Swap positions with an undead ally. If used on a corpse, resurrect it to 1 HP.","Swap positions with an undead ally. If used on a corpse, resurrect it to half HP. 
+[s:.7](This spell is free the 1st time you use it each turn.)[/s]","",""
+"To Do","","SC_PATCHWORK
+SC_Patchwork","Patchwork","Apocalyptic","Misc","7 Mana","Destroy all bodies in an area to unearth a Zombie familiar. It gains +3 [img:str], +2 [img:con], and 8 HP for each body destroyed.","Destroy all bodies in an area to unearth a Zombie familiar. It gains +3 [img:str], +2 [img:con], and 8 HP for each body destroyed. [s:.7](This spell costs less.)[/s]","5 Mana on Upgraded",""
+"To Do","","SC_THEPERFECTORGANISM
+SC_ThePerfectOrganism","The Perfect Organism!","Apocalyptic","Misc","40 Mana","Unearth a powerful Zombie familiar that joins your party permanently. You can pay for this spell over multiple turns. 
+[s:.7](This spell's mana cost can't be modified.)[/s]","Unearth a powerful Zombie familiar that joins your party permanently. You can pay for this spell over multiple turns. 
+This spell absorbs the mana you spend casting other spells.
+[s:.7](This spell's mana cost can't be modified.)[/s]","",""
+"Testing","","SC_COMMANDUNDEAD
+SC_CommandUndead","Command Undead","Apocalyptic","Misc","12 Mana","Heal an undead unit 4 HP. This spell can revive units. If the unit healed was an enemy with 20 HP or less, it joins your party permanently.","Heal an undead unit 4 HP. This spell can revive units. If the unit healed was an enemy with 30 HP or less, it joins your party permanently. [s:.7](This spell costs less.)[/s]","8 Mana on Upgraded",""
+"Half Done","","SC_UNEARTHZOMBIE
+SC_UnearthZombie","Unearth Zombie","Apocalyptic","Misc","4 Mana","Destroy a body to unearth a zombie familiar.","Destroy a body to unearth 2-3 zombie familiars.","",""
+"To Do","","SC_UNEARTHFALLENHERO
+SC_UnearthFallenHero","Unearth Fallen Hero","Apocalyptic","Misc","8 Mana","Unearth a random collared cat as a zombie. They have a chance to equip random equipment.","Unearth a random collared cat as a zombie. They have a chance to equip random equipment, and a chance to join your party permanently!","This is such a cool concept. I can already see the spawn pools for each class, the items, and the exact spawns already. To do all of that for a single active is quite interesting. But perhaps I can also turn it into a passive, I will right now",""
+"Half Done","","SC_REGURGITATE
+SC_Regurgitate","Regurgitate","Apoptosis","Attack","3 Mana","Suffer -1 [img:str] and -1 [img:con], then spit a large cone of poison.","Suffer -1 [img:str] and -1 [img:con], then spit an even larger cone of potent poison!","",""
+"Testing","","SC_BODYTOSS
+SC_BodyToss","Body Toss","Core","Attack","3 Mana","Throw an adjacent body to another tile or unit, damaging both equal to the body's max HP.","Throw an adjacent body to another tile or unit, damaging both equal to the body's max HP. 
+[s:.7](This spell is free.)[/s]","0 Mana on Upgraded.","Body like unit or corpse?"
+"Half Done","","SC_NECROTICSURGE
+SC_NecroticSurge","Necrotic Surge","Core","Attack","5 Mana","A melee attack that deals 1 damage. Whenever a unit dies, this spell's damage increases by 3.","A melee attack that deals 1 damage. Whenever a unit dies, this spell's damage increases by 5.","",""
+"Half Done","","SC_RIGORMORTIS
+SC_RigorMortis","Rigor Mortis","Core","Defense","7 Mana","Until the start of your next turn, you are Immobilized, immune to knockback, and have Brace equal to half your [img:con] rounded up. 
+[s:.7](Castable once per turn.)[/s]","Until the start of your next turn, you are Immobilized, immune to knockback, and have 99 Brace. [s:.7](Castable once per turn.)[/s]","",""
+"To Do","","SC_UNDEADTREATS
+SC_UndeadTreats","Undead Treats","Insatiable","Misc","8 Mana","Dig up 3 corpses in a large area around you.  Until the end of your turn, when you move to a corpse, automatically eat it.","Dig up 3 corpses in a large area. Until the end of your turn, when you move to a corpse, automatically eat it and get an All Stats Up. ","From Pierce (helll yeah)",""
+"To Do","","SC_SPINNINGAPART
+SC_SpinningApart","Spinning Apart","Apoptosis","Attack","9 Mana","Spin around, attacking everything around you twice while dropping Poisoned Food. ","Spin around, attacking everything around you thrice while dropping Poisoned Bait. ","3 damage at base, to spawn the food/bait it'll be bounced off of the enemy on hit (or by default on the diagonal tiles from the spin)",""
+"To Do","","SC_TILLDEATH
+SC_TillDeath","'Till Death","","","","","","I just like the name, I haven't thought of anything yet except it connects to Do Us Part.",""

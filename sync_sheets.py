@@ -202,12 +202,90 @@ def load_or_init_config() -> dict:
     return config
 
 
+def push_single_sheet(webhook_url: str, file_path: Path) -> bool:
+    """Pushes a single local CSV file to the Google Sheets Apps Script webhook."""
+    timestamp = time.strftime("%H:%M:%S")
+    sheet_name = file_path.stem
+    try:
+        payload = json.dumps({
+            "sheet_name": sheet_name,
+            "csv_data": file_path.read_text(encoding="utf-8")
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            webhook_url,
+            data=payload,
+            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT}
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            res = json.loads(resp.read().decode("utf-8"))
+            if res.get("status") == "success":
+                print(f"[{timestamp}] [PUSHED] Sheets/{file_path.name} -> Google Sheets ('{sheet_name}')")
+                return True
+            else:
+                print(f"[{timestamp}] [ERROR] Google Sheets returned error for '{sheet_name}': {res.get('message')}")
+                return False
+    except Exception as e:
+        print(f"[{timestamp}] [ERROR] Failed to push '{file_path.name}': {e}")
+        return False
+
+
+def push_all(config: dict) -> int:
+    """Pushes all local CSV files in Sheets/ to Google Sheets via Webhook."""
+    webhook_url = config.get("webhook_url", "").strip()
+
+    if not webhook_url:
+        print("=" * 60)
+        print("  SheetHappens - Push to Google Sheets")
+        print("=" * 60)
+        print("No Webhook URL configured in sync_config.json yet.")
+        print("\nTo enable pushing local changes back to Google Sheets:")
+        print("1. Follow the 'Two-Way Sync' guide in README.md to deploy the Apps Script.")
+        print("2. Paste the Web App URL below (or enter it into sync_config.json).")
+        print("=" * 60)
+        try:
+            user_input = input("\nEnter Web App URL (or press Enter to cancel):\n> ").strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\nCancelled.")
+            return 0
+
+        if not user_input or not user_input.startswith("http"):
+            print("No URL provided. Push cancelled.")
+            return 0
+
+        webhook_url = user_input
+        config["webhook_url"] = webhook_url
+        try:
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2)
+            print(f"[SUCCESS] Saved webhook_url to {CONFIG_FILE.name}\n")
+        except Exception as e:
+            print(f"[WARNING] Could not save config: {e}")
+
+    csv_files = sorted(list(SHEETS_DIR.glob("*.csv")) + list(SHEETS_DIR.glob("*.tsv")))
+    if not csv_files:
+        print(f"[ERROR] No CSV or TSV files found in {SHEETS_DIR}")
+        return 0
+
+    print(f"Pushing {len(csv_files)} local file(s) to Google Sheets...")
+    pushed_count = 0
+    with ThreadPoolExecutor(max_workers=min(len(csv_files), 4)) as executor:
+        futures = [executor.submit(push_single_sheet, webhook_url, f) for f in csv_files]
+        pushed_count = sum(1 for f in futures if f.result())
+
+    print(f"\nDone! {pushed_count} sheet(s) updated online.")
+    return pushed_count
+
+
 def main():
     config = load_or_init_config()
+    is_push_mode = "--push" in sys.argv or "-p" in sys.argv
     is_watch_mode = "--watch" in sys.argv or "-w" in sys.argv
     interval = config.get("watch_interval_seconds", 10)
 
-    if is_watch_mode:
+    if is_push_mode:
+        push_all(config)
+    elif is_watch_mode:
         print("=" * 60)
         print("  SheetHappens")
         print(f"  Watching every {interval}s... (Press Ctrl+C to stop)")

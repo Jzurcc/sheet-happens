@@ -1,0 +1,5 @@
+"Status","Image","Passive","Name","Archetype/s","Description","Upgraded Description","Notes"
+"Done","","SC_INNATEUNDEAD
+SC_InnateUndead","Innate Undead","Insatiable","You are Undead and have Apoptosis. When adjacent to a body, your basic attack is Feast.","N/A","Innate Passive"
+"Done","","SC_APOPTOSIS
+SC_Apoptosis","Apoptosis","Apoptosis, Insatiable"," At the start of each battle, gain Loose Chunks equal to half your [img:con] rounded down. When you eat poisoned food, heal 4 HP and gain +1 [img:str], +1 [img:con], and +1 Loose Chunk instead of its normal effects.","N/A","Innate Passive. Loose Chunk: Gain -1 [img:str], -1 [img:con], and spawn poisoned food the next {stacks} times you take damage."
