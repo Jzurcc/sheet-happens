@@ -1,6 +1,6 @@
 # SheetHappens (Google Sheets Automated Synchronizer)
 
-I wanted to format google sheets neatly in the web while still conveniently editing their contents inside my code editor. So I built SheetHappens, a tiny, zero-dependency tool that pulls public Google Sheets into local files in real time.
+I wanted to format google sheets neatly in the web while still quickly viewing their contents inside my code editor. So I built SheetHappens, a tiny, zero-dependency tool that pulls public Google Sheets into local files in real time.
 
 Edit your spreadsheets in your browser. Run SheetHappens. Get fresh local files (`.csv`, `.tsv`, `.xlsx`, `.pdf`) immediately in the `Sheets/` folder without touching the Google Cloud Console or managing OAuth tokens.
 
