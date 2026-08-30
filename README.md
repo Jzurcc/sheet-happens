@@ -16,7 +16,7 @@ I'll make another version for Google Drive folders soon, supporting all file typ
    ```text
    No Google Spreadsheet ID configured yet.
    Please paste your public Google Sheets link (or ID):
-   > https://docs.google.com/spreadsheets/d/1zWOJfO08DNXUgOX_R___Dj7SfW5hP3EAHeWCPT9G0Nc/...
+   > https://docs.google.com/spreadsheets/d/1zW8JfO08DNXUgOX_R___Dj7SfW5hP3EAHeWCPT9G0Nc/...
    ```
 3. SheetHappens extracts the ID, saves it into `sync_config.json`, and downloads all your tabs into `Sheets/`.
 
