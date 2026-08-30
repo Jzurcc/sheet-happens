@@ -105,6 +105,27 @@ def _extract_sheet_targets(zip_archive: zipfile.ZipFile, xml_namespace: str, rel
     return targets
 
 
+def _read_cell_value(cell: ET.Element, strings: list[str], xml_namespace: str) -> str:
+    """Reads the computed value from an XLSX cell element.
+
+    Note: Formula text from the XLSX <f> element is intentionally ignored.
+    Google Sheets XLSX exports wrap Sheets-native functions (LET, VSTACK, ARRAYFORMULA)
+    inside DUMMYFUNCTION() stubs for Excel compatibility, making the raw formula
+    text unreliable for round-tripping back to Google Sheets.
+    """
+    cell_type = cell.attrib.get("t")
+    value_elem = cell.find(f"{xml_namespace}v")
+
+    if value_elem is None or value_elem.text is None:
+        return ""
+    if cell_type == "s":
+        string_idx = int(value_elem.text)
+        return strings[string_idx] if string_idx < len(strings) else ""
+
+    val = value_elem.text
+    return val[:-2] if val.endswith(".0") else val
+
+
 def _parse_worksheet_rows(ws_tree: ET.Element, strings: list[str], xml_namespace: str) -> list[list[str]]:
     """Parses a single worksheet XML element into a 2D grid of string values."""
     cell_pattern = re.compile(r"([A-Z]+)(\d+)")
@@ -123,25 +144,17 @@ def _parse_worksheet_rows(ws_tree: ET.Element, strings: list[str], xml_namespace
         max_col = max(max_col, col_idx)
         max_row = max(max_row, row_idx)
 
-        cell_type = cell.attrib.get("t")
-        value_elem = cell.find(f"{xml_namespace}v")
-        val = ""
-
-        if value_elem is not None and value_elem.text is not None:
-            if cell_type == "s":
-                string_idx = int(value_elem.text)
-                val = strings[string_idx] if string_idx < len(strings) else ""
-            else:
-                val = value_elem.text
-                if val.endswith(".0"):
-                    val = val[:-2]
-
-        grid.setdefault(row_idx, {})[col_idx] = val
+        grid.setdefault(row_idx, {})[col_idx] = _read_cell_value(cell, strings, xml_namespace)
 
     rows = []
     for r in range(max_row + 1):
         row_cells = [grid.get(r, {}).get(c, "") for c in range(max_col + 1)]
         rows.append(row_cells)
+
+    # Drop trailing empty rows produced by ARRAYFORMULA/LET spill ranges
+    while rows and all(cell == "" for cell in rows[-1]):
+        rows.pop()
+
     return rows
 
 
