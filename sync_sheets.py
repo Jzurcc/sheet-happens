@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import io
 import json
@@ -40,32 +41,16 @@ def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/*?:"<>|]', "_", name).strip()
 
 
-def get_all_sheet_names(spreadsheet_id: str) -> list[str]:
-    """Discovers all sheet tab names from Google's workbook XML in memory."""
-    url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=xlsx"
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        content = resp.read()
-
-    with zipfile.ZipFile(io.BytesIO(content)) as z:
-        tree = ET.fromstring(z.read("xl/workbook.xml"))
-        ns = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
-        return [elem.attrib["name"] for elem in tree.iter(f"{ns}sheet") if "name" in elem.attrib]
-
-
-def fetch_sheet_tab(spreadsheet_id: str, sheet_name: str, fmt: str = "csv") -> bytes:
-    """Fetches formatted data (csv/tsv) for a single sheet tab."""
-    encoded_name = urllib.parse.quote(sheet_name)
-    url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:{fmt}&sheet={encoded_name}"
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return resp.read()
+def col2num(col_str: str) -> int:
+    """Converts Excel column string (e.g. 'A', 'Z', 'AA') to 1-based integer."""
+    num = 0
+    for char in col_str:
+        num = num * 26 + (ord(char) - ord('A') + 1)
+    return num
 
 
 def fetch_full_workbook(spreadsheet_id: str, fmt: str = "xlsx") -> bytes:
-    """Fetches the entire workbook in binary/export format (xlsx, pdf, ods, html)."""
+    """Fetches the entire workbook in binary export format (xlsx, pdf, ods, html)."""
     url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format={fmt}"
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
 
@@ -73,7 +58,87 @@ def fetch_full_workbook(spreadsheet_id: str, fmt: str = "xlsx") -> bytes:
         return resp.read()
 
 
-# core engine
+def parse_workbook_to_tabs(xlsx_bytes: bytes, fmt: str = "csv") -> dict[str, bytes]:
+    """Parses Google Sheets XLSX export into pure CSV/TSV per tab in memory without losing mixed-type cells."""
+    delimiter = "\t" if fmt == "tsv" else ","
+    ns = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    rel_ns = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes)) as z:
+        # 1. Parse shared strings
+        strings = []
+        if "xl/sharedStrings.xml" in z.namelist():
+            sst = ET.fromstring(z.read("xl/sharedStrings.xml"))
+            for si in sst.iter(f"{ns}si"):
+                text_parts = [t.text for t in si.iter(f"{ns}t") if t.text]
+                strings.append("".join(text_parts))
+
+        # 2. Parse workbook relationship mapping
+        sheets_info = []
+        wb_tree = ET.fromstring(z.read("xl/workbook.xml"))
+        for sheet in wb_tree.iter(f"{ns}sheet"):
+            sheet_name = sheet.attrib.get("name")
+            r_id = sheet.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id")
+            if sheet_name and r_id:
+                sheets_info.append((sheet_name, r_id))
+
+        rel_map = {}
+        if "xl/_rels/workbook.xml.rels" in z.namelist():
+            rels_tree = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+            for rel in rels_tree.iter(f"{rel_ns}Relationship"):
+                rel_map[rel.attrib.get("Id")] = rel.attrib.get("Target")
+
+        tabs_data = {}
+        for sheet_name, r_id in sheets_info:
+            target_rel = rel_map.get(r_id, "")
+            target_path = "xl/" + target_rel.lstrip("/")
+            if target_path not in z.namelist():
+                continue
+
+            ws = ET.fromstring(z.read(target_path))
+            rows_data = {}
+            max_c = 0
+            max_r = 0
+
+            for c in ws.iter(f"{ns}c"):
+                cell_ref = c.attrib.get("r", "")
+                if not cell_ref:
+                    continue
+                m = re.match(r"([A-Z]+)(\d+)", cell_ref)
+                if not m:
+                    continue
+                col_idx = col2num(m.group(1)) - 1
+                row_idx = int(m.group(2)) - 1
+                max_c = max(max_c, col_idx)
+                max_r = max(max_r, row_idx)
+
+                t_type = c.attrib.get("t")
+                v_elem = c.find(f"{ns}v")
+                val = ""
+                if v_elem is not None and v_elem.text is not None:
+                    if t_type == "s":
+                        s_idx = int(v_elem.text)
+                        val = strings[s_idx] if s_idx < len(strings) else ""
+                    else:
+                        val = v_elem.text
+                        # Clean trailing .0 from pure integers
+                        if val.endswith(".0"):
+                            val = val[:-2]
+
+                rows_data.setdefault(row_idx, {})[col_idx] = val
+
+            out = io.StringIO()
+            writer = csv.writer(out, delimiter=delimiter, lineterminator="\n")
+            for r in range(max_r + 1):
+                row_cells = [rows_data.get(r, {}).get(c, "") for c in range(max_c + 1)]
+                writer.writerow(row_cells)
+
+            tabs_data[sheet_name] = out.getvalue().encode("utf-8")
+
+        return tabs_data
+
+
+# core sync engine
 def sync_file_content(target_path: Path, new_data: bytes, display_name: str, verbose: bool = True) -> bool:
     """Writes binary data to disk if the MD5 hash differs. Returns True if updated."""
     timestamp = time.strftime("%H:%M:%S")
@@ -90,34 +155,7 @@ def sync_file_content(target_path: Path, new_data: bytes, display_name: str, ver
     return False
 
 
-def sync_single_tab(spreadsheet_id: str, sheet_name: str, target_file: str, fmt: str, verbose: bool = True) -> bool:
-    """Syncs a single tab to disk if changed."""
-    timestamp = time.strftime("%H:%M:%S")
-    try:
-        new_data = fetch_sheet_tab(spreadsheet_id, sheet_name, fmt)
-        return sync_file_content(SHEETS_DIR / target_file, new_data, sheet_name, verbose)
-    except Exception as e:
-        print(f"[{timestamp}] [ERROR] Failed to sync tab '{sheet_name}': {e}")
-        return False
-
-
-def resolve_sheet_targets(config: dict, cached_names: list[str] = None, fmt: str = "csv") -> tuple[str, list[tuple[str, str]], list[str]]:
-    """Resolves the spreadsheet ID and list of (sheet_name, target_filename) pairs."""
-    spreadsheet_id = extract_spreadsheet_id(config.get("spreadsheet_id", ""))
-    if not spreadsheet_id:
-        return "", [], []
-
-    if config.get("mappings"):
-        targets = [(m["sheet_name"], m["target_file"]) for m in config["mappings"]]
-        names = [t[0] for t in targets]
-        return spreadsheet_id, targets, names
-
-    names = cached_names or get_all_sheet_names(spreadsheet_id)
-    targets = [(name, f"{sanitize_filename(name)}.{fmt}") for name in names]
-    return spreadsheet_id, targets, names
-
-
-def sync_all(config: dict, cached_names: list[str] = None, verbose: bool = True) -> tuple[int, list[str]]:
+def sync_all(config: dict, verbose: bool = True) -> tuple[int, list[str]]:
     """Syncs sheets based on the configured format (per-tab or full workbook)."""
     fmt = config.get("format", DEFAULT_FORMAT).lower().strip().lstrip(".")
     if fmt not in SUPPORTED_FORMATS:
@@ -131,6 +169,7 @@ def sync_all(config: dict, cached_names: list[str] = None, verbose: bool = True)
 
     SHEETS_DIR.mkdir(parents=True, exist_ok=True)
 
+    # 1. Full workbook exports (xlsx, pdf, ods, html)
     if fmt in {"xlsx", "pdf", "ods", "html"}:
         target_filename = f"spreadsheet.{fmt}"
         try:
@@ -141,24 +180,21 @@ def sync_all(config: dict, cached_names: list[str] = None, verbose: bool = True)
             print(f"[ERROR] Failed to export workbook as {fmt}: {e}")
             return 0, []
 
+    # 2. Per-tab exports (csv, tsv) - Fast single atomic workbook download + parse
     try:
-        spreadsheet_id, targets, sheet_names = resolve_sheet_targets(config, cached_names, fmt)
+        xlsx_bytes = fetch_full_workbook(spreadsheet_id, "xlsx")
+        tabs = parse_workbook_to_tabs(xlsx_bytes, fmt)
     except Exception as e:
-        print(f"[ERROR] Could not discover sheets: {e}")
+        print(f"[ERROR] Could not fetch sheets: {e}")
         return 0, []
 
-    if not targets:
-        print("[ERROR] No sheet tabs found.")
-        return 0, []
+    updated_count = 0
+    for sheet_name, data in tabs.items():
+        filename = f"{sanitize_filename(sheet_name)}.{fmt}"
+        if sync_file_content(SHEETS_DIR / filename, data, sheet_name, verbose):
+            updated_count += 1
 
-    with ThreadPoolExecutor(max_workers=min(len(targets), 8)) as executor:
-        futures = [
-            executor.submit(sync_single_tab, spreadsheet_id, sheet_name, filename, fmt, verbose)
-            for sheet_name, filename in targets
-        ]
-        updated_count = sum(1 for f in futures if f.result())
-
-    return updated_count, sheet_names
+    return updated_count, list(tabs.keys())
 
 
 # push & two-way sync engine
@@ -185,7 +221,7 @@ def push_single_sheet(webhook_url: str, file_path: Path) -> bool:
             print(f"[{timestamp}] [PUSHED] Sheets/{file_path.name} -> Google Sheets ('{sheet_name}')")
             return True
         else:
-            print(f"[{timestamp}] [ERROR] Google Sheets returned error for '{sheet_name}': {res.get('message')}")
+            print(f"[{timestamp}] [ERROR] Google Sheets error for '{sheet_name}': {res.get('message')}")
             return False
     except Exception as e:
         print(f"[{timestamp}] [ERROR] Failed to push '{file_path.name}': {e}")
@@ -238,49 +274,49 @@ def push_all(config: dict) -> int:
     return pushed_count
 
 
-def two_way_sync_cycle(config: dict, sheet_names: list[str], known_hashes: dict[str, str]) -> tuple[list[str], dict[str, str]]:
+def two_way_sync_cycle(config: dict, known_hashes: dict[str, str]) -> dict[str, str]:
     """Performs a smart two-way check: pushes local edits, pulls cloud edits."""
     fmt = config.get("format", DEFAULT_FORMAT).lower().strip().lstrip(".")
     spreadsheet_id = extract_spreadsheet_id(config.get("spreadsheet_id", ""))
     webhook_url = config.get("webhook_url", "").strip()
 
     if not spreadsheet_id:
-        return sheet_names, known_hashes
-
-    try:
-        _, targets, sheet_names = resolve_sheet_targets(config, sheet_names, fmt)
-    except Exception:
-        return sheet_names, known_hashes
+        return known_hashes
 
     SHEETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    for sheet_name, target_name in targets:
-        target_path = SHEETS_DIR / target_name
+    # 1. Check local files for user edits first
+    for f in list(SHEETS_DIR.glob(f"*.{fmt}")):
+        sheet_name = f.stem
         last_hash = known_hashes.get(sheet_name)
-        local_hash = hashlib.md5(target_path.read_bytes()).hexdigest() if target_path.exists() else None
+        local_hash = hashlib.md5(f.read_bytes()).hexdigest()
 
-        # 1. Check if user edited the local file (local hash changed since last sync)
-        if last_hash is not None and local_hash is not None and local_hash != last_hash:
+        if last_hash is not None and local_hash != last_hash:
             if webhook_url:
-                if push_single_sheet(webhook_url, target_path):
+                if push_single_sheet(webhook_url, f):
                     known_hashes[sheet_name] = local_hash
-                continue
 
-        # 2. Check if Google Sheets changed online
-        try:
-            new_data = fetch_sheet_tab(spreadsheet_id, sheet_name, fmt)
-            remote_hash = hashlib.md5(new_data).hexdigest()
+    # 2. Fetch fresh cloud state in 1 fast atomic request
+    try:
+        xlsx_bytes = fetch_full_workbook(spreadsheet_id, "xlsx")
+        tabs = parse_workbook_to_tabs(xlsx_bytes, fmt)
+
+        for sheet_name, data in tabs.items():
+            filename = f"{sanitize_filename(sheet_name)}.{fmt}"
+            target_path = SHEETS_DIR / filename
+            remote_hash = hashlib.md5(data).hexdigest()
+            local_hash = hashlib.md5(target_path.read_bytes()).hexdigest() if target_path.exists() else ""
 
             if local_hash != remote_hash:
-                target_path.write_bytes(new_data)
+                target_path.write_bytes(data)
                 timestamp = time.strftime("%H:%M:%S")
                 print(f"[{timestamp}] [PULLED] {sheet_name} -> Sheets/{target_path.name}")
 
             known_hashes[sheet_name] = remote_hash
-        except Exception:
-            pass
+    except Exception:
+        pass
 
-    return sheet_names, known_hashes
+    return known_hashes
 
 
 # CLI & watcher lifecycle
@@ -342,22 +378,15 @@ def main():
         print(f"  Watching every {interval}s... (Press Ctrl+C to stop)")
         print("=" * 60)
 
-        _, sheet_names = sync_all(config, verbose=True)
+        _, _ = sync_all(config, verbose=True)
         known_hashes = {}
         for f in SHEETS_DIR.glob("*.*"):
             known_hashes[f.stem] = hashlib.md5(f.read_bytes()).hexdigest()
 
-        last_tab_check = time.monotonic()
-        tab_discovery_interval = 60
-
         try:
             while True:
                 time.sleep(interval)
-                if time.monotonic() - last_tab_check >= tab_discovery_interval:
-                    sheet_names = None
-                    last_tab_check = time.monotonic()
-
-                sheet_names, known_hashes = two_way_sync_cycle(config, sheet_names, known_hashes)
+                known_hashes = two_way_sync_cycle(config, known_hashes)
         except KeyboardInterrupt:
             print("\nWatcher stopped.")
     else:
