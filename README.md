@@ -83,54 +83,29 @@ By default, SheetHappens is read-only (pulls from Google Sheets). If you want to
 3. Replace any code in the editor with this script:
 
 ```javascript
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({ status: "ready", message: "SheetHappens Webhook is active!" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     var sheetName = data.sheet_name;
     var csvText = data.csv_data;
-    
+
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
-    
+
     var rows = Utilities.parseCsv(csvText);
     if (!rows || rows.length === 0 || rows[0].length === 0) {
       return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "empty" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
-    
-    var numRows = rows.length;
-    var numCols = rows[0].length;
-    
-    // Separate plain values from formula cells.
-    // Formulas are written LAST so that ARRAYFORMULA/LET spill ranges recalculate cleanly
-    // and overwrite any hardcoded spill values we wrote in the first pass.
-    var values = [];
-    var formulaCells = []; // { row, col, formula }
-    
-    for (var r = 0; r < numRows; r++) {
-      var rowValues = [];
-      for (var c = 0; c < numCols; c++) {
-        var cell = String(rows[r][c] || "");
-        if (cell.startsWith("=")) {
-          formulaCells.push({ row: r + 1, col: c + 1, formula: cell });
-          rowValues.push(""); // placeholder so setValues() doesn't choke
-        } else {
-          rowValues.push(cell);
-        }
-      }
-      values.push(rowValues);
-    }
-    
-    // Pass 1: Write all plain values (clears content, preserves formatting)
+
     sheet.clearContents();
-    sheet.getRange(1, 1, numRows, numCols).setValues(values);
-    
-    // Pass 2: Write formula anchor cells last so spill ranges are computed fresh
-    for (var i = 0; i < formulaCells.length; i++) {
-      var fc = formulaCells[i];
-      sheet.getRange(fc.row, fc.col).setFormula(fc.formula);
-    }
-    
+    sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+
     return ContentService.createTextOutput(JSON.stringify({ status: "success", sheet: sheetName }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
@@ -139,6 +114,7 @@ function doPost(e) {
   }
 }
 ```
+
 
 
 ### 2. Deploy as Web App
