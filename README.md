@@ -83,11 +83,6 @@ By default, SheetHappens is read-only (pulls from Google Sheets). If you want to
 3. Replace any code in the editor with this script:
 
 ```javascript
-function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({ status: "ready", message: "SheetHappens Webhook is active!" }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
